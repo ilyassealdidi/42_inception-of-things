@@ -1,63 +1,24 @@
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
-
-# ============================================
-# Replace "wil" with your actual 42 login
-# ============================================
-LOGIN = "wil"
-
-SERVER_IP   = "192.168.56.110"
-WORKER_IP   = "192.168.56.111"
-BOX         = "debian/bookworm64"   # Latest stable Debian 12
-
 Vagrant.configure("2") do |config|
-  config.vm.box = BOX
 
-  # ── Shared token folder ──
-  # Both VMs can read/write here so the server can export
-  # its node-token and the agent can pick it up.
-  config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+  config.vm.box = "bento/ubuntu-24.04"
 
-  # ══════════════════════════════════════════
-  #  SERVER  (K3s controller)
-  # ══════════════════════════════════════════
-  config.vm.define "#{LOGIN}S" do |server|
-    server.vm.hostname = "#{LOGIN}S"
-    server.vm.network "private_network", ip: SERVER_IP
-
-    server.vm.provider "virtualbox" do |v|
-      v.memory = 1024
-      v.cpus   = 1
-      v.name   = "#{LOGIN}S"
-    end
-
-    server.vm.provision "shell",
-      path: "scripts/install_server.sh",
-      env: {
-        "NODE_IP"   => SERVER_IP,
-        "LOGIN"     => LOGIN
-      }
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "1024"
+    vb.cpus = 1
   end
 
-  # ══════════════════════════════════════════
-  #  SERVER-WORKER  (K3s agent)
-  # ══════════════════════════════════════════
-  config.vm.define "#{LOGIN}SW" do |worker|
-    worker.vm.hostname = "#{LOGIN}SW"
-    worker.vm.network "private_network", ip: WORKER_IP
-
-    worker.vm.provider "virtualbox" do |v|
-      v.memory = 1024
-      v.cpus   = 1
-      v.name   = "#{LOGIN}SW"
-    end
-
-    worker.vm.provision "shell",
-      path: "scripts/install_agent.sh",
-      env: {
-        "NODE_IP"    => WORKER_IP,
-        "SERVER_IP"  => SERVER_IP,
-        "LOGIN"      => LOGIN
-      }
+  # ── First machine: Server (control plane) ──────────────────────────────────
+  config.vm.define "ialdidiS" do |server|
+    server.vm.hostname = "ialdidiS"
+    server.vm.network "private_network", ip: "192.168.56.110"
+    server.vm.provision "shell", path: "scripts/server.sh"
   end
+
+  # ── Second machine: ServerWorker (agent) ───────────────────────────────────
+  config.vm.define "ialdidiSW" do |worker|
+    worker.vm.hostname = "ialdidiSW"
+    worker.vm.network "private_network", ip: "192.168.56.111"
+    worker.vm.provision "shell", path: "scripts/worker.sh"
+  end
+
 end
