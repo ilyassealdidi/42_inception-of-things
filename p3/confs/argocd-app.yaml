@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: playground
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/ezahiri10/ezahiri-iot'
+    targetRevision: HEAD
+    path: .
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true     
+      selfHeal: true
+
+# automated        → apply changes without human clicking "Sync"
+# selfHeal: true   → cluster always matches GitHub, manual edits get reverted
+# prune: true      → deleted files in GitHub = deleted resources in cluster
+# CreateNamespace  → create the namespace if missing
