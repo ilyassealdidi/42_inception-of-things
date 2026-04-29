@@ -17,14 +17,16 @@ set -e
 
 echo "===== [1/9] Installing Docker ====="
 if ! command -v docker &> /dev/null; then
+  . /etc/os-release
+  DISTRO=$ID   # "ubuntu" or "debian"
   sudo apt-get update
   sudo apt-get install -y ca-certificates curl gnupg
   sudo install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  curl -fsSL https://download.docker.com/linux/${DISTRO}/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   sudo chmod a+r /etc/apt/keyrings/docker.gpg
   echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${DISTRO} \
+    ${VERSION_CODENAME} stable" | \
     sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
   sudo apt-get update
   sudo apt-get install -y docker-ce docker-ce-cli containerd.io
@@ -35,7 +37,9 @@ fi
 
 echo "===== [2/9] Installing kubectl ====="
 if ! command -v kubectl &> /dev/null; then
-  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+  ARCH=$(uname -m)
+  [ "$ARCH" = "aarch64" ] && ARCH="arm64" || ARCH="amd64"
+  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl"
   sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
   rm kubectl
 else
@@ -74,6 +78,13 @@ k3d cluster create iot-bonus \
 echo "Waiting for cluster nodes..."
 kubectl wait --for=condition=Ready nodes --all --timeout=120s
 echo "Cluster ready."
+
+# Make kubeconfig available to the sudo-calling user (not just root)
+REAL_USER=${SUDO_USER:-$USER}
+REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
+mkdir -p "$REAL_HOME/.kube"
+cp /root/.kube/config "$REAL_HOME/.kube/config"
+chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.kube/config"
 
 echo "===== [6/9] Creating namespaces ====="
 kubectl create namespace argocd
@@ -132,7 +143,7 @@ echo "=============================="
 echo "Username: root"
 
 echo "===== [8/9] Installing Argo CD ====="
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 echo "Waiting for Argo CD pods..."
 kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s

@@ -1,0 +1,36 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+LOGIN = "ialdidi"
+
+# ARM64 VirtualBox box — works on Apple Silicon with VirtualBox 7.1+
+BOX = "bento/ubuntu-22.04"
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX
+
+  config.vm.define "#{LOGIN}Bonus" do |bonus|
+    bonus.vm.hostname = "#{LOGIN}Bonus"
+
+    bonus.vm.network "forwarded_port", guest: 8080, host: 8080   # Traefik / k3d loadbalancer
+    bonus.vm.network "forwarded_port", guest: 8443, host: 8443   # GitLab UI
+    bonus.vm.network "forwarded_port", guest: 8888, host: 8888   # App
+    bonus.vm.network "forwarded_port", guest: 9090, host: 9090   # Argo CD UI
+    bonus.vm.network "forwarded_port", guest: 9191, host: 9191   # GitLab UI
+
+    bonus.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+
+    bonus.vm.provider "virtualbox" do |v|
+      v.memory = 8192
+      v.cpus   = 4
+      v.name   = "#{LOGIN}Bonus"
+    end
+
+    bonus.vm.provision "shell", inline: <<-SHELL
+      cp -r /vagrant/scripts /home/vagrant/
+      cp -r /vagrant/confs   /home/vagrant/
+      chmod +x /home/vagrant/scripts/*.sh
+      echo "Setup copied. Run: sudo /home/vagrant/scripts/setup.sh"
+    SHELL
+  end
+end
