@@ -6,16 +6,18 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/ezahiri10/ezahiri-iot'
+    repoURL: 'https://github.com/ilyassealdidi/ialdidi_iot.git'
     targetRevision: HEAD
     path: .
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: default
+    namespace: dev
   syncPolicy:
     automated:
-      prune: true     
+      prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 
 # automated        → apply changes without human clicking "Sync"
 # selfHeal: true   → cluster always matches GitHub, manual edits get reverted
