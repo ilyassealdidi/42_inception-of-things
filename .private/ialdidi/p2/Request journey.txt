@@ -1,0 +1,11 @@
+vagrant up → VirtualBox creates the VM based on Vagrantfile specs
+  → provisioning script installs K3s
+    → K3s automatically deploys Traefik and ServiceLB
+      → svclb-traefik pod binds to 192.168.56.110:80
+        → user request arrives at 192.168.56.110:80
+          → svclb-traefik accepts the connection
+            → kube-proxy iptables rules redirect to Traefik pod
+              → Traefik reads Host header, matches Ingress rules
+                → forwards to the correct Service
+                  → kube-proxy iptables rules route to the correct pod
+                    → nginxdemos/hello serves the response
