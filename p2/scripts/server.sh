@@ -13,3 +13,8 @@ done
 
 echo ">>> Applying manifests..."
 kubectl apply -f /vagrant/confs/
+
+echo ">>> Waiting for Traefik to be ready..."
+kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=traefik -n kube-system --timeout=300s
+
+echo ">>> Cluster is ready!"
