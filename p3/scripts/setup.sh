@@ -94,8 +94,10 @@ nohup kubectl port-forward --address 0.0.0.0 svc/argocd-server -n argocd 9090:44
   > /tmp/argocd-portforward.log 2>&1 &
 disown
 
+PUBLIC_IP=$(hostname -I | awk '{print $1}')
+
 echo ""
 echo "===== SETUP COMPLETE ====="
 echo "Check status:  kubectl get pods -n dev"
 echo "Test app:      curl http://localhost:8888/"
-echo "Argo CD UI:    https://<droplet-ip>:9090  (admin / <password above>)"
+echo "Argo CD UI:    https://${PUBLIC_IP}:9090  (admin / <password above>)"
