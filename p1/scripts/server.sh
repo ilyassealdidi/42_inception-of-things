@@ -28,6 +28,7 @@ echo ">>> Copying node token to shared folder so the worker can read it..."
 cp /var/lib/rancher/k3s/server/node-token /vagrant/node-token
 
 echo ">>> Copying kubeconfig so kubectl works from the host too (optional but useful)..."
+chmod o+r /etc/rancher/k3s/k3s.yaml
 cp /etc/rancher/k3s/k3s.yaml /vagrant/k3s.yaml
 
 echo ">>> Server provisioning complete."
