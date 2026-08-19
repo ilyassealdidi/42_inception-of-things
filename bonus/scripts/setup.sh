@@ -54,7 +54,7 @@ fi
 
 echo "===== [5/9] Creating K3d cluster ====="
 # Clean up both clusters to avoid port conflicts
-k3d cluster delete iot-cluster 2>/dev/null || true
+k3d cluster delete iot-cluster 2>/dev/null || true #!
 k3d cluster delete iot-bonus   2>/dev/null || true
 
 k3d cluster create iot-bonus \
@@ -81,10 +81,10 @@ kubectl create namespace dev    2>/dev/null || true
 kubectl create namespace gitlab 2>/dev/null || true
 
 echo "===== [7/9] Installing GitLab ====="
-# Fix DNS inside k3d node so it can pull images
+
 docker exec k3d-iot-bonus-server-0 sh -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf'
 
-helm repo add gitlab https://charts.gitlab.io/ 2>/dev/null || helm repo update
+helm repo add gitlab https://charts.gitlab.io/ 2>/dev/null || true
 helm repo update
 
 helm upgrade --install gitlab gitlab/gitlab \
@@ -150,11 +150,11 @@ disown -a
 PUBLIC_IP=$(hostname -I | awk '{print $1}')
 
 echo ""
-echo "===== BONUS SETUP COMPLETE ====="
+echo "===== SETUP IS COMPLETED ====="
 echo ""
 echo "Next: push your manifests to GitLab, then ArgoCD will deploy automatically."
 echo "  Run:  bash $SCRIPT_DIR/push2gitlab.sh"
 echo ""
 echo "GitLab UI:   http://${PUBLIC_IP}:8443  (root / <password above>)"
 echo "Argo CD UI:  https://${PUBLIC_IP}:8080  (admin / <password above>)"
-echo "Test app:    curl http://localhost:8888/"
+echo "Test app:    curl http://${PUBLIC_IP}:8888/"

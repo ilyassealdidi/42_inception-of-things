@@ -1,15 +1,6 @@
 #!/bin/bash
 set -e
 
-# ============================================
-# This script pushes the app manifests to your
-# local GitLab instance.
-#
-# Run this AFTER GitLab is fully up and you've
-# created a project called "inception-of-things"
-# in the GitLab web UI (http://localhost:8443)
-# ============================================
-
 GITLAB_URL="http://localhost:8443"
 REPO_NAME="inception-of-things"
 
@@ -25,7 +16,7 @@ git checkout -b main
 # Create the manifests folder
 mkdir -p manifests
 
-# Create deployment.yaml (same as Part 3)
+# Create deployment.yaml
 cat > manifests/deployment.yaml << 'EOF'
 apiVersion: apps/v1
 kind: Deployment
@@ -69,7 +60,6 @@ git add .
 git commit -m "v1 - initial deployment"
 
 # Push to local GitLab
-# You'll be prompted for credentials: root / <gitlab password>
 git remote add origin "${GITLAB_URL}/root/${REPO_NAME}.git"
 git push -u origin main
 
