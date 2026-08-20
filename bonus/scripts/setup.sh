@@ -7,7 +7,7 @@ ARCH="$(uname -m)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFS_DIR="$(cd "$SCRIPT_DIR/../confs" && pwd)"
 
-echo "===== [1/9] Installing Docker ====="
+echo "===== [1/10] Installing Docker ====="
 if ! command -v docker &> /dev/null; then
   . /etc/os-release
   sudo apt-get update
@@ -26,7 +26,7 @@ else
   echo "Docker already installed, skipping."
 fi
 
-echo "===== [2/9] Installing kubectl ====="
+echo "===== [2/10] Installing kubectl ====="
 if ! command -v kubectl &> /dev/null; then
   curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl"
   sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
@@ -36,7 +36,7 @@ else
   echo "kubectl already installed, skipping."
 fi
 
-echo "===== [3/9] Installing K3d ====="
+echo "===== [3/10] Installing K3d ====="
 if ! command -v k3d &> /dev/null; then
   curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
   echo "K3d installed."
@@ -44,7 +44,7 @@ else
   echo "K3d already installed, skipping."
 fi
 
-echo "===== [4/9] Installing Helm ====="
+echo "===== [4/10] Installing Helm ====="
 if ! command -v helm &> /dev/null; then
   curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
   echo "Helm installed."
@@ -52,9 +52,8 @@ else
   echo "Helm already installed, skipping."
 fi
 
-echo "===== [5/9] Creating K3d cluster ====="
-# Clean up both clusters to avoid port conflicts
-k3d cluster delete iot-cluster 2>/dev/null || true #!
+echo "===== [5/10] Creating K3d cluster ====="
+k3d cluster delete iot-cluster 2>/dev/null || true
 k3d cluster delete iot-bonus   2>/dev/null || true
 
 k3d cluster create iot-bonus \
@@ -75,38 +74,46 @@ chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.kube/config"
 
 echo "Cluster ready."
 
-echo "===== [6/9] Creating namespaces ====="
+echo "===== [6/10] Creating namespaces ====="
 kubectl create namespace argocd 2>/dev/null || true
 kubectl create namespace dev    2>/dev/null || true
 kubectl create namespace gitlab 2>/dev/null || true
 
-echo "===== [7/9] Installing GitLab ====="
+echo "===== [7/10] Installing PostgreSQL and Redis ====="
 
 docker exec k3d-iot-bonus-server-0 sh -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf'
 
+helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
 helm repo add gitlab https://charts.gitlab.io/ 2>/dev/null || true
 helm repo update
 
-helm upgrade --install gitlab gitlab/gitlab \
+helm upgrade --install pg bitnami/postgresql \
   --namespace gitlab \
-  --set global.hosts.domain=gitlab.local \
-  --set global.hosts.externalIP=127.0.0.1 \
-  --set global.hosts.https=false \
-  --set global.ingress.configureCertmanager=false \
-  --set global.ingress.class=traefik \
-  --set global.certmanager.install=false \
-  --set nginx-ingress.enabled=false \
-  --set registry.enabled=false \
-  --set gitlab-runner.install=false \
-  --set prometheus.install=false \
-  --set global.kas.enabled=false \
-  --set global.pages.enabled=false \
-  --set gitlab.webservice.minReplicas=1 \
-  --set gitlab.webservice.maxReplicas=1 \
-  --set gitlab.sidekiq.minReplicas=1 \
-  --set gitlab.sidekiq.maxReplicas=1 \
-  --set gitlab.gitlab-shell.minReplicas=1 \
-  --set gitlab.gitlab-shell.maxReplicas=1 \
+  --set auth.username=gitlab \
+  --set auth.password=gitlabpassword \
+  --set auth.database=gitlabhq_production \
+  --wait --timeout 120s
+
+helm upgrade --install rd bitnami/redis \
+  --namespace gitlab \
+  --set auth.password=redispassword \
+  --set architecture=standalone \
+  --wait --timeout 120s
+
+echo "Waiting for PostgreSQL and Redis to be ready..."
+kubectl wait --for=condition=Ready pods \
+  -l app.kubernetes.io/name=postgresql \
+  -n gitlab --timeout=120s
+kubectl wait --for=condition=Ready pods \
+  -l app.kubernetes.io/name=redis \
+  -n gitlab --timeout=120s
+
+echo "===== [8/10] Installing GitLab ====="
+
+helm upgrade --install gitlab gitlab/gitlab \
+  --version 9.11.12 \
+  --namespace gitlab \
+  -f "$CONFS_DIR/gitlab-values.yaml" \
   --timeout 600s
 
 echo "Waiting for GitLab webservice pod (this takes several minutes)..."
@@ -123,7 +130,7 @@ kubectl get secret gitlab-gitlab-initial-root-password \
 echo -e "\n=============================="
 echo "Username: root"
 
-echo "===== [8/9] Installing Argo CD ====="
+echo "===== [9/10] Installing Argo CD ====="
 kubectl apply -n argocd --server-side --force-conflicts \
   -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
@@ -137,15 +144,41 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d
 echo -e "\n=============================="
 
-echo "===== [9/9] Configuring Argo CD application ====="
+echo "===== [10/10] Configuring Argo CD application ====="
 kubectl apply -f "$CONFS_DIR/argo-cd-app.yaml"
 
-# Port-forward ArgoCD and GitLab UIs — survive SSH disconnect
-nohup kubectl port-forward --address 0.0.0.0 svc/argocd-server -n argocd 8080:443 \
-  > /tmp/argocd-portforward.log 2>&1 &
-nohup kubectl port-forward --address 0.0.0.0 svc/gitlab-webservice-default -n gitlab 8443:8181 \
-  > /tmp/gitlab-portforward.log 2>&1 &
-disown -a
+# Create systemd services for port-forwards so they survive SSH disconnect
+cat > /etc/systemd/system/gitlab-portforward.service << EOF
+[Unit]
+Description=GitLab Port Forward
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/kubectl port-forward --address 0.0.0.0 svc/gitlab-webservice-default -n gitlab 8443:8181
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/argocd-portforward.service << EOF
+[Unit]
+Description=ArgoCD Port Forward
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/kubectl port-forward --address 0.0.0.0 svc/argocd-server -n argocd 8080:443
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable gitlab-portforward argocd-portforward
+systemctl start gitlab-portforward argocd-portforward
 
 PUBLIC_IP=$(hostname -I | awk '{print $1}')
 
