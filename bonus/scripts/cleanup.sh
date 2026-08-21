@@ -55,5 +55,23 @@ else
   echo "Namespace ${NAMESPACE} already exists."
 fi
 
+
+# (optional) delete namespace-scoped resources first
+kubectl delete all --all -n gitlab --ignore-not-found
+
+# delete the namespace
+kubectl delete namespace gitlab --ignore-not-found
+
+# wait for deletion (120s)
+kubectl wait --for=delete namespace/gitlab --timeout=120s || echo "Namespace still exists or timed out"
+
+# if still stuck, remove finalizers (no jq required) and retry
+kubectl patch namespace gitlab -p '{"spec":{"finalizers":[]}}' --type=merge || true
+kubectl delete namespace gitlab --ignore-not-found
+kubectl wait --for=delete namespace/gitlab --timeout=60s || echo "Namespace still exists"
+
+# verify
+kubectl get namespaces
+
 echo "===== Cleanup complete ====="
 echo "You can now run the setup script."

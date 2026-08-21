@@ -58,6 +58,7 @@ k3d cluster delete iot-bonus   2>/dev/null || true
 
 k3d cluster create iot-bonus \
   --api-port 6444 \
+  --network k3d-iot-bonus \
   -p "8888:8888@loadbalancer" \
   -p "8080:8080@loadbalancer" \
   -p "8443:8443@loadbalancer" \
