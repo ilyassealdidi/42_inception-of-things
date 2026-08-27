@@ -53,7 +53,6 @@ else
 fi
 
 echo "===== [5/9] Creating K3d cluster ====="
-# Clean up both clusters to avoid port conflicts
 k3d cluster delete iot-cluster 2>/dev/null || true
 k3d cluster delete iot-bonus   2>/dev/null || true
 
@@ -154,21 +153,18 @@ echo -e "\n=============================="
 echo "===== [9/9] Configuring Argo CD application ====="
 kubectl apply -f "$CONFS_DIR/argo-cd-app.yaml"
 
-# Port-forward ArgoCD and GitLab UIs — survive SSH disconnect
+
 nohup kubectl port-forward --address 0.0.0.0 svc/argocd-server -n argocd 9443:443 \
   > /tmp/argocd-portforward.log 2>&1 &
 nohup kubectl port-forward --address 0.0.0.0 svc/gitlab-webservice-default -n gitlab 9444:8181 \
   > /tmp/gitlab-portforward.log 2>&1 &
 disown -a
 
-PUBLIC_IP=$(hostname -I | awk '{print $1}')
-
 echo ""
 echo "===== SETUP IS COMPLETED ====="
 echo ""
-echo "Next: push your manifests to GitLab, then ArgoCD will deploy automatically."
 echo "  Run:  bash $SCRIPT_DIR/push2gitlab.sh"
 echo ""
-echo "GitLab UI:   http://${PUBLIC_IP}:9444  (root / <password above>)"
-echo "Argo CD UI:  https://${PUBLIC_IP}:9443  (admin / <password above>)"
-echo "Test app:    curl http://${PUBLIC_IP}:8888/"
+echo "GitLab UI:   http://localhost:9444  (root / <password above>)"
+echo "Argo CD UI:  https://localhost:9443  (admin / <password above>)"
+echo "Test app:    curl http://localhost:8888/"

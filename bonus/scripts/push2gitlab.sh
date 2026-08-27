@@ -89,5 +89,3 @@ git push origin main
 
 echo ""
 echo "===== Done: pushed ${VERSION} ====="
-echo "Argo CD auto-syncs within ~3 minutes. To force it now:"
-echo "  kubectl -n argocd annotate application wil-playground argocd.argoproj.io/refresh=hard --overwrite"
