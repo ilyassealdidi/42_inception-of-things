@@ -1,0 +1,40 @@
+# ============================================
+# Argo CD Application — pointing to LOCAL GitLab
+#
+# Key difference from Part 3:
+#   Part 3 repoURL → https://github.com/...
+#   Bonus  repoURL → http://gitlab-webservice-default.gitlab.svc:8181/...
+#
+# The URL above is a Kubernetes internal DNS name.
+# Since both Argo CD and GitLab run in the same cluster,
+# they can talk to each other using service DNS names:
+#   <service-name>.<namespace>.svc
+# ============================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wil-playground
+  namespace: argocd
+spec:
+  project: default
+
+  # ── Source: local GitLab (inside the cluster) ──
+  source:
+    # This URL uses Kubernetes internal DNS to reach GitLab
+    # Format: http://<gitlab-service>.<gitlab-namespace>.svc:<port>/<user>/<repo>.git
+    repoURL: http://gitlab-webservice-default.gitlab.svc:8181/root/inception-of-things.git
+    targetRevision: main
+    path: manifests
+
+  # ── Destination: deploy into dev namespace ──
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev
+
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
