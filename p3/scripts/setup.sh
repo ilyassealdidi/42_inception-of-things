@@ -83,10 +83,6 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 echo -e "\n=============================="
 echo "Username: admin"
 
-# Enable x86 image emulation on ARM64 hosts
-sudo apt-get install -y qemu-user-static binfmt-support 2>/dev/null || true
-docker run --privileged --rm tonistiigi/binfmt --install amd64 2>/dev/null || true
-
 echo "===== [7/7] Configuring Argo CD application ====="
 kubectl apply -f "$CONFS_DIR/argocd-app.yaml"
 
