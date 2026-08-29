@@ -18,8 +18,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-
-# automated        → apply changes without human clicking "Sync"
-# selfHeal: true   → cluster always matches GitHub, manual edits get reverted
-# prune: true      → deleted files in GitHub = deleted resources in cluster
-# CreateNamespace  → create the namespace if missing
