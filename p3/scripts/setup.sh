@@ -83,10 +83,6 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 echo -e "\n=============================="
 echo "Username: admin"
 
-# Enable x86 image emulation on ARM64 hosts
-sudo apt-get install -y qemu-user-static binfmt-support 2>/dev/null || true
-docker run --privileged --rm tonistiigi/binfmt --install amd64 2>/dev/null || true
-
 echo "===== [7/7] Configuring Argo CD application ====="
 kubectl apply -f "$CONFS_DIR/argocd-app.yaml"
 
@@ -94,10 +90,8 @@ nohup kubectl port-forward --address 0.0.0.0 svc/argocd-server -n argocd 9090:44
   > /tmp/argocd-portforward.log 2>&1 &
 disown
 
-PUBLIC_IP=$(hostname -I | awk '{print $1}')
-
 echo ""
 echo "===== SETUP COMPLETE ====="
 echo "Check status:  kubectl get pods -n dev"
 echo "Test app:      curl http://localhost:8888/"
-echo "Argo CD UI:    https://${PUBLIC_IP}:9090  (admin / <password above>)"
+echo "Argo CD UI:    https://<droplet-ip>:9090  (admin / <password above>)"
