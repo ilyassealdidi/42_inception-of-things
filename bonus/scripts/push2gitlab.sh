@@ -44,7 +44,7 @@ else
 fi
 
 mkdir -p "$REPO_DIR/manifests"
-cat > "$REPO_DIR/manifests/deployment.yaml" << EOF
+cat > "manifests/deployment.yaml" << EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
